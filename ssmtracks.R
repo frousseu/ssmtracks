@@ -1,68 +1,29 @@
 
-library(rgbif)
+### rename and number files
+# exiftool -d '%Y%m%d_%H%M%S_%%02.c.%%e' '-filename<CreateDate' .
 
-x <- as.data.frame(rgbif::occ_data(scientificName = "Chordeiles minor",year="1900,2023",month="6,7",hasCoordinate = TRUE,hasGeospatialIssue=FALSE, limit = 100)$data)
+stacked <- "/home/frousseu/Documents/inaturalist/20250413/20250413_143723retouched.jpg"
+target <- "/home/frousseu/Documents/inaturalist/20250413/20250413_143751_00.jpg"
 
+"~/Documents/inaturalist/20250503/20250503_180904_00stacked.jpg"
 
-x2 <- as.data.frame(rgbif::occ_data(scientificName = "Chordeiles minor",year="1900,2023",month="6,7",hasCoordinate = TRUE,hasGeospatialIssue=FALSE, limit = 100)$data)
+system(sprintf("exiftool -overwrite_original -tagsfromfile %s -Make -Model -Software -FocalLength -CreateDate -DateTimeOriginal \'%s\'", target, stacked))
+#system(sprintf("exiftool -tagsfromfile %s -all:all --Orientation \'%s\'", target, stacked))
+##system(sprintf("exiftool '-Comment<${Comment}Stacked' \'%s\'", stacked))
+system(sprintf("exiftool -overwrite_original '-Comment=Stacked' \'%s\'", stacked))
 
-
-library(aniMotum)
-
-
-
-
-
-fit <- fit_ssm(sese[sese$id==sese$id[1],], 
-               vmax= 4, 
-               model = "mp", 
-               time.step = 24, 
-               control = ssm_control(verbose = 0))
-
-plot(fit, type = 3, pages = 1, ncol = 2)
-
-plot(fit, what = "predicted", type = 2, pages = 1)
-
-
-st_layers("C:/Users/God/Downloads/doc.kml")
-x<-st_read("C:/Users/God/Downloads/doc.kml",layer="lcpbss")
-x<-st_read("C:/Users/God/Downloads/doc.kml",layer="Calque")
-
-library(maptools)
-x<-getKMLcoordinates(textConnection(system("unzip -p /Users/God/Tous_les_calques.kmz", intern = TRUE)))
-
-x <- sim(N = 50, model = "crw", D = 0.5)# |> as.data.frame()
-x$id<-"id1"
+### give exif to stacked
+folder <- "20251210"
+lf <- list.files(file.path("/home/frousseu/Documents/inaturalist", folder), pattern = ".jpg", full = TRUE)
+lf <- lf[duplicated(gsub("stacked", "", lf)) | duplicated(gsub("stacked", "", lf), fromLast = TRUE)]
+lf
+invisible(lapply(unique(gsub("stacked", "", lf)), function(i){
+  stacked <- gsub(".jpg", "stacked.jpg", i)
+  system(sprintf("exiftool -overwrite_original -tagsfromfile %s -Make -Model -Software -FocalLength -CreateDate -DateTimeOriginal \'%s\'", i, stacked))
+  system(sprintf("exiftool -overwrite_original '-Comment=stacked' \'%s\'", stacked))
+}))
 
 
-
-
-st_layers("C:/Users/God/Downloads/20221228165822.gpx")
-x<-st_read("C:/Users/God/Downloads/20221228165822.gpx","tracks")#[5,]
-x<-st_read("C:/Users/God/Downloads/20221227124622.gpx","track_points")#[5,]
-x<-st_transform(x,32740)
-x$hdop<-ifelse(is.na(x$hdop),10,x$hdop)
-xb<-st_buffer(x,x$hdop*5)
-
-
-plot(st_geometry(x),axes=TRUE)
-plot(st_geometry(xb),add=TRUE)
-plot(st_geometry(x[x$src=="network",]),col="red",pch=16,add=TRUE)
-plot(st_geometry(x[x$src=="gps",]),col="green",pch=16,add=TRUE)
-plot(st_geometry(x[x$src=="gps",]),col="green",pch=16,add=TRUE)
-lx<-x %>% summarise(do_union = FALSE) %>% st_cast("LINESTRING")
-plot(st_geometry(lx),col="green",pch=16,add=TRUE)
-plot(st_geometry(st_centroid(st_union(x))),add=TRUE,col="red")
-mapview(x,maxZoom=20,maxNativeZoom=100)
-
-r<-rast(ext=ext(xb),res=0.5)
-r<-terra::rasterize(vect(xb),r,field="track_seg_point_id",fun="length",sum=TRUE,background=0)
-r<-crop(r,vect(st_buffer(st_union(x),50)))
-plot(r)
-plot(st_geometry(xb),add=TRUE)
-
-crs(r)<-crs(x)
-mapview(raster(r))
 
 
 
@@ -75,51 +36,82 @@ library(magick)
 library(exiftoolr)
 library(mapview)
 
-pathgpx<-"C:/Users/God/Documents/gpslogger"
-pathims<-"C:/Users/God/Documents/inat"
+pathgpx<-"/home/frousseu/Documents/inaturalist/gpslogger"
+pathims<-"/home/frousseu/Documents/inaturalist/20251210"
+epsg<- 32618
+#epsg<- 32631
 
-daterange<-c("2023-03-12","2023-03-12")
+# done until 2023-06-15 (maybe check epsg with everything after RUN
+
+daterange<-c("2025-10-27","2025-12-10") #06-15
 gpxfiles<-sort(list.files(pathgpx,pattern=".gpx",full=TRUE))#,"track_points")#[5,]
 dr<-seq(as.Date(daterange[1]),as.Date(daterange[2]),by=1)
-gpxfiles<-sort(gpxfiles[substr(basename(gpxfiles),1,8)%in%gsub("-","",as.character(dr))])
-#gpxfiles<-gpxfiles[3]
+gpxfiles<-sort(gpxfiles[substr(basename(gpxfiles),1,8)%in%gsub("-","",as.character(dr))])#[-7]
 
-#lf<-sort(list.files("C:/Users/God/Documents/gpslogger",pattern="20230129101834.gpx",full=TRUE))#,"track_points")#[5,]
-#lf<-sort(list.files("C:/Users/God/Documents/gpslogger",pattern=".gpx",full=TRUE))
-#lf<-lf[basename(lf)>=after][2]
-#st_layers("C:/Users/God/Downloads/Tous les calques.gpx")
-#x<-st_read("C:/Users/God/Downloads/Tous les calques.gpx","tracks")#[5,]
-#x1<-st_read("C:/Users/God/Downloads/20221228173243.gpx","track_points")#[5,]
-#x2<-st_read("C:/Users/God/Downloads/20230108153054.gpx","track_points")#[5,]
+#gpxfiles <- gpxfiles[-c(4, 8)] ||||||||||||||||||||||
+#thresh2split <- 300 |||||||||||||||||||||||||||||||
+
 gpx<-lapply(gpxfiles,function(i){
   x<-st_read(i,"track_points")#[5,]
+  if(i == "/home/frousseu/Documents/inaturalist/gpslogger/20241006180037.gpx"){
+    x <- x[1:170, ]
+  }
+  if(i == "/home/frousseu/Documents/inaturalist/gpslogger/20250715200450.gpx"){
+    x <- x[1:141, ]
+  }
+  if(i == "/home/frousseu/Documents/inaturalist/gpslogger/20250815161657.gpx"){
+    x <- x[1:104, ]
+  }
+  if(i == "/home/frousseu/Documents/inaturalist/gpslogger/20250821152323.gpx"){
+    x <- x[1:46, ]
+  }
+  if(i == "/home/frousseu/Documents/inaturalist/gpslogger/20250821161445.gpx"){
+    x <- x[1:113, ]
+  }
+  if(i == "/home/frousseu/Documents/inaturalist/gpslogger/20250906123634.gpx"){
+    x <- x[1:137, ]
+  }
+  if(i == "/home/frousseu/Documents/inaturalist/gpslogger/20251026142017.gpx"){
+    x <- x[1:198, ]
+  }
+  if(i == "/home/frousseu/Documents/inaturalist/gpslogger/20251115154955.gpx"){
+    x <- x[1:117, ]
+  }
   x$id<-basename(i)
-  x$date<-x$time
-  x<-st_transform(x,32740)
+  time<-x$time
+  #attr(time,"tzone")<-"Europe/Paris"
+  x$date<-time
+  #tz_lookup_coords(43.87899,-0.2908675, method = "fast")
+  x<-st_transform(x,epsg)
+  #x<-st_transform(x,32618)
   x$acc<-ifelse(is.na(x$hdop),10,x$hdop)*5*1 # min acc of 10 m
   x<-x[x$src=="gps",] # remove network locations
   x<-x[which(x$hdop<30),] # remove large hdop cause problems with ssm
   x<-x[which(x$ele>-50),]
+  #runs <- cumsum(c(0, as.numeric(diff(x$time))) > thresh2split) + 1 ||||||||||||||||||||
+  #if(max(runs) > 1){
+  #  l <- split(x, runs)
+  #  nl <- sapply(l, function(j){format(j$time, "%Y%m%d_%H%M%S")[1]}) |>
+  #          as.character() |>
+  #          gsub("-|:", "", x = _) |>
+  #          gsub(" ", "_", x = _) |>
+  #          paste0(".gpx")
+  #  names(l) <- nl
+  #  lapply(nl, function(j){st_write(l[[j]], j, layer = "track_points", dataset_options = c("GPX_USE_EXTENSIONS=yes"))})
+  #}else{
   x
+  #}
 })
+
+#gpx <- gpx[-c(1,2)]
+
+
+
 #gpx<-list(do.call("rbind",gpx));gpxfiles<-gpxfiles[1]
 names(gpx)<-basename(gpxfiles)
-#x2<-st_read("C:/Users/God/Documents/gpslogger/20230115094055.gpx","track_points")#[5,]
-#x<-do.call("rbind",x[1])
-#x<-x[x$src=="gps",]
-#x<-x[x$hdop<99,]
-#x<-x[substr(x$time,1,10)=="2022-12-10" & substr(x$time,12,19)<="18:00:00",]
-#plot(st_geometry(x))
-#lx <-x %>% group_by(id) %>% summarize(m = mean(attr_data)) %>% st_cast("LINESTRING")
-#x$id<-"p1"
-#x$date<-x$time
-#x<-st_transform(x,32740)
-#x$acc<-ifelse(is.na(x$hdop),10,x$hdop)*5*1#*sort(rep(1:5000,length.out=nrow(x)))
-#x$acc<-exp(seq(0.1,8.5,length.out=nrow(x)))
-#smaj<-x$acc
-#lx<-x %>% summarise(do_union = FALSE) %>% st_cast("LINESTRING")
-#xb<-st_buffer(x,x$acc)
-gpx4ssm<-lapply(gpx,function(i){
+gpx4ssm<-lapply(names(gpx),function(j){
+  print(j)
+  i<-gpx[[j]]
   smaj<-i$acc
   x<-format_data(i)
   x$lc<-"G"
@@ -129,40 +121,38 @@ gpx4ssm<-lapply(gpx,function(i){
   x
 })
 names(gpx4ssm)<-basename(gpxfiles)
-#x<-format_data(x)
-#x$lc<-"G"
-#x$smaj<-smaj
-#x$smaj<-x$smaj*sample(c(1,10),nrow(x),replace=TRUE)#*seq(1,10,length.out=nrow(x))
-#x$smin<-x$smaj
-#x$lonerr<-10
-#x$laterr<-x$lonerr
-
-#x<-x[1:73,]
-#x<-format_data(x)
-
-#x<-ellie
-#x<-x[sample(1:nrow(x),30),]
-#x$smaj<-sample(1:10000,nrow(x))
-#x$smaj<-c(seq(1,100000,length.out=nrow(x)/2),rev(seq(1,100000,length.out=nrow(x)/2)))
-#x$smin<-x$smaj
 
 
 ### Spot AtomJPEG crap in UserComment
-ims<-list.files("C:/Users/God/Documents/inat",full=TRUE,pattern=".jpg",recursive=TRUE)
+ims<-list.files(pathims,full=TRUE,pattern=".jpg",recursive=TRUE)
 ims<-ims[order(basename(ims))]
 ims<-ims[substr(basename(ims),1,8)>=gsub("-","",daterange[1])]
-exif<-exif_read(ims,tags = c("DateTimeOriginal","GPSLongitude","GPSLatitude","UserComment"))
+exif<-exif_read(ims,tags = c("DateTimeOriginal","GPSLongitude","GPSLatitude","GPSDateTime","UserComment"))
 o<-order(exif$DateTimeOriginal)
 ims<-ims[o]
 exif<-exif[o,]
-dto<-as.POSIXct(exif[,"DateTimeOriginal"],format="%Y:%m:%d %H:%M:%S")# |> as.character()
+#dto<-as.POSIXct(exif[,"DateTimeOriginal"],format="%Y:%m:%d %H:%M:%S",tz="")
+dto<-as.POSIXct(exif[,"DateTimeOriginal"],format="%Y:%m:%d %H:%M:%S",tz="")# |> as.character()
 exif$ims<-ims
 exif$dto<-dto
 if(any(grep("AtomJPEG",exif$UserComment))){
   warning(sprintf("The following have been modified by AtomJPEG: %s",exif$SourceFile[grep("AtomJPEG",exif$UserComment)]))
 }
 if(any(is.na(exif$dto))){
-  stop(sprintf("The following have no DateTimeOriginal: %s",exif$SourceFile[is.na(exif$dto)]))
+  # replaces the missing dto by the dto of the closest GPSDateTime in the set and show what was used
+  w<-which(is.na(exif$dto))
+  replaced<-vector(mode="list",length=length(w))
+  for(i in w){
+    gpsdt<-as.POSIXct(exif$GPSDateTime,format="%Y:%m:%d %H:%M:%SZ",tz="GMT")
+    wm<-which.min(abs(difftime(gpsdt[i],gpsdt[-w])))
+    exif$dto[i]<-exif[-w,][wm,]$dto
+    replaced[[match(i,w)]]<-exif[-w,][wm,c("ims","dto")]
+    system(paste("xdg-open",exif$ims[i]))
+    system(paste("xdg-open",replaced[[match(i,w)]]$ims))
+  }
+  names(replaced)<-exif$ims[w]
+  print(replaced)
+  warning(sprintf("The following have no DateTimeOriginal: %s",exif$SourceFile[is.na(exif$dto)]))
 }
 
 #exif[is.na(exif$dto),]
@@ -187,30 +177,19 @@ ssm<-lapply(seq_along(gpx),function(i){
   ts<-unique(rbind(ts1,ts2))
   ts<-ts[order(ts$date),]
   #row.names(ts)<-1:nrow(ts)
-  
-  fit <- fit_ssm(x, 
-                 vmax= 20, 
+
+  fit <- fit_ssm(x,
+                 vmax= 3,
                  #ang=c(90,90),
-                 model = "rw", 
+                 model = "rw",
                  min.dt=0,
-                 time.step = ts, 
+                 time.step = ts,
                  control = ssm_control(verbose = 1))
-  
+
   plot(fit,what="fitted",type=2)
   p<-as.data.frame(grab(fit,"predicted"))
-  #p<-st_as_sf(p,coords=c("x","y"),crs=32740)
-  #plot(st_geometry(p),pch=16,cex=1,col="darkred",axes=TRUE)
   p$acc<-sqrt((2*p$x.se)^2+(2*p$y.se)^2)
-  p$acc<-ifelse(p$acc<20,20,p$acc)
-  #bacc<-st_geometry(st_buffer(p,p$acc))
-  #buff<-st_geometry(st_buffer(p,2*p$x.se))
-  #trackacc<-st_union(bacc)
-  #track<-p %>% summarise(do_union = FALSE) %>% st_cast("LINESTRING")
-  #plot(st_geometry(trackacc),pch=16,border=NA,col=adjustcolor("black",0.2),add=TRUE)
-  #plot(st_geometry(buff),border=adjustcolor("black",0.5),col=NA,add=TRUE)
-  #plot(st_geometry(x),pch=1,cex=1,add=TRUE)
-  #plot(st_geometry(track),add=TRUE)
-  #plot(st_geometry(lx),add=TRUE)
+  #p$acc<-ifelse(p$acc<10,10,p$acc)
   m<-match(as.character(exif$dto[w]),as.character(p$date))
   pics<-p[m,]
   pics$SourceFile<-exif$SourceFile[w]
@@ -233,21 +212,26 @@ ssmtracks<-do.call("rbind",lapply(ssm,function(i){
 }))
 
 ssmbuffers<-do.call("rbind",lapply(ssm,function(i){
-  x<-st_as_sf(i$preds,coords=c("x","y"),crs=32740)
+  x<-st_as_sf(i$preds,coords=c("x","y"),crs=epsg)
   x<-st_buffer(x,dist=sqrt((2*x$x.se)^2+(2*x$y.se)^2))
   st_as_sf(st_union(x))
 }))
 
 ssmpics<-pics |>
-  st_as_sf(coords=c("x","y"),crs=32740) |>
+  st_as_sf(coords=c("x","y"),crs=epsg) |>
   st_buffer(dist=pics$acc) |>
   st_as_sf()
 
 
-gpspics<-exif_read(pics$SourceFile,tags = c("GPSLongitude","GPSLatitude"))
-gpspics<-st_as_sf(gpspics,coords=c("GPSLongitude","GPSLatitude"),crs=4326,na.fail=FALSE)
+gpspics<-exif_read(pics$SourceFile)#,tags = c("GPSLongitude","GPSLatitude"))
+if(is.null(gpspics$GPSLongitude)){
+  gpspics$GPSLongitude<-NA
+  gpspics$GPSLatitude<-NA
+}
+gpspics<-st_as_sf(gpspics[,c("GPSLongitude","GPSLatitude")],coords=c("GPSLongitude","GPSLatitude"),crs=4326,na.fail=FALSE)
 gpspics<-gpspics[!st_is_empty(gpspics),]
 
+#gpx <- lapply(gpx, function(i){i[, intersect(names(gpx[[1]]), names(gpx[[2]]))]}) ||||||||||||||||||
 gpxpoints<-do.call("rbind",gpx)
 
 mapview(ssmbuffers,col.regions="blue",alpha.regions=0.15,lwd=0) +
@@ -260,35 +244,27 @@ mapview(ssmbuffers,col.regions="blue",alpha.regions=0.15,lwd=0) +
 
 
 
-#im<-image_read(lf[1])
 
-#trackpoints<-as.data.frame(x)
-#st_geometry(trackpoints)<-"geometry"
-#st_crs(trackpoints)<-st_crs(x)
-#mapview(trackacc,col.regions="blue",alpha.regions=0.15,lwd=0)+
-#  mapview(trackpoints,cex=2)+
-#  mapview(track,alpha=0.25)+
-#  mapview(picsacc,col.regions="red",alpha.regions=0.3)
-
-#mapview(list(lp,xb),alpha.regions=0.4)
-#mapview(xb,alpha.regions=0.1)
-#mapview(list(pics,picsunc),alpha.regions=0.1)
-
-#e<-exif_read(lf, tags = "*GPS*",args="-n")
-#e$GPSLatitude<--1*abs(e$GPSLatitude)
-#e<-st_as_sf(e,coords=c("GPSLongitude","GPSLatitude"),crs=4326)
-#lf2<-gsub(".jpg","_test.jpg",lf)
 tags<-c("-GPSLongitude=","-GPSLatitude=","-GPSHPositioningError=","-GPSLongitudeRef=","-GPSLatitudeRef=","-UserComment=","-ImageDescription=")
-lapply((1:nrow(pics)),function(i){
-  vtags<-c(pics$lon[i],pics$lat[i],pics$acc[i],"E","S","Location and accuracy obtained from a SSM inferred track and possibly manually adjusted","SSMtrack")
+invisible(lapply((1:nrow(pics)),function(i){
+  print(i)
+  vtags<-c(pics$lon[i],pics$lat[i],pics$acc[i],ifelse(pics$lon[i] < 0, "W", "E"),"N","Location and accuracy obtained from a SSM inferred track and possibly manually adjusted","ssmtracks")
   string<-paste0(tags,vtags)
   string<-c("-overwrite_original",string)
   #string<-paste("-n",string)
   exif_call(path = pics$SourceFile[i], args = string)
-})
+}))
 #vtags<-c()
 #exif_call(path = lf[13], args = paste(tags,))
 #exif_read(lf[12], tags = "*GPS*")
+
+
+
+
+
+
+
+
 
 
 
@@ -307,8 +283,6 @@ lapply((1:nrow(exif)),function(i){
 })
 
 
-
-
 #mapview(pics)
 
 #exif_call(path = lf2[i], args = string)
@@ -321,15 +295,15 @@ library(aniMotum)
 
 step<-as.difftime(72,units="hours")
 
-fit <- fit_ssm(ellie, 
-               vmax = Inf, 
+fit <- fit_ssm(ellie,
+               vmax = Inf,
                ang=c(180,180),
                distlim = c(Inf, Inf),
-               min.dt=as.numeric(step,units="secs"), 
-               model = "crw", 
-               time.step = 24, 
+               min.dt=as.numeric(step,units="secs"),
+               model = "crw",
+               time.step = 24,
                control = ssm_control(verbose = 0)
-) 
+)
 
 res<-grab(fit,"fitted")
 nrow(res)
@@ -348,12 +322,12 @@ x$smaj<-exp(seq(0.1,13,length.out=nrow(x)))
 x$smin<-x$smaj
 x$eor<-0
 
-fit <- fit_ssm(x, 
-               min.dt=0, 
-               model = "crw", 
-               time.step = 24, 
+fit <- fit_ssm(x,
+               min.dt=0,
+               model = "crw",
+               time.step = 24,
                control = ssm_control(verbose = 0)
-) 
+)
 
 res<-grab(fit,"fitted")
 plot(fit, what = "predicted",type=2)
@@ -419,7 +393,7 @@ as.numeric(min(diff(minGap(x=obs,gap=gap,method="min"))),units="hours")
 
 
 res<-sapply(1:iter,function(i){
-  min(vals[sample(1:iter,i)])  
+  min(vals[sample(1:iter,i)])
 })
 
 #plot(1:iter,res,log="x")
@@ -472,10 +446,10 @@ x$smaj<-exp(seq(0.1,13,length.out=nrow(x)))
 x$smin<-x$smaj
 x$eor<-0
 
-fit <- fit_ssm(tr, 
-               model = "rw", 
+fit <- fit_ssm(tr,
+               model = "rw",
                min.dt=,
-               time.step = ts, 
+               time.step = ts,
                control = ssm_control(verbose = 1))
 
 plot(fit,  what = "predicted",type=2)
@@ -484,7 +458,7 @@ plot(fit,  what = "predicted",type=2)
 p<-grab(fit,"predicted")
 
 
-p<-st_as_sf(p,coords=c("x","y"),crs=32740)
+p<-st_as_sf(p,coords=c("x","y"),crs=epsg)
 plot(st_geometry(p),pch=16,cex=1,col="darkred",axes=TRUE)
 acc<-st_buffer(p,2*p$x.se)
 buff<-st_geometry(st_buffer(p,2*p$x.se))
@@ -540,10 +514,10 @@ p<-st_sample(nc,10000)
 plot(st_geometry(nc),axes=TRUE)
 plot(st_geometry(p),add=TRUE)
 
-system.time({ 
+system.time({
   b1<-st_union(p) |> st_buffer(dist=0.1)
 })
 
-system.time({ 
+system.time({
   b2<-st_buffer(p,dist=0.1) |> st_union()
 })
